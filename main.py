@@ -13,6 +13,9 @@ import os
 import io
 import time
 
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
+
 path_to_zip = tf.keras.utils.get_file(
     'spa-eng.zip', origin='http://storage.googleapis.com/download.tensorflow.org/data/spa-eng.zip',
     extract=True)
