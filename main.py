@@ -22,6 +22,24 @@ path_to_zip = tf.keras.utils.get_file(
 
 path_to_file = os.path.dirname(path_to_zip) + "/spa-eng/spa.txt"
 
+path_to_data = 'data/lyric_note/'
+
+
+def load_data(path):
+    input_file = os.path.join(path)
+    with open(input_file, 'r', encoding='utf-8') as f:
+        data = f.read()
+
+    return data.split("\n")
+
+
+def load_stage_data(data_path, stage='train', source='lyric', target='note'):
+    source = load_data(data_path + source + '-' + stage)
+    source = [preprocess_sentence(w) for w in source]
+    target = load_data(data_path + target + '-' + stage)
+    target = [preprocess_sentence(w) for w in target]
+    return source, target
+
 
 # Converts the unicode file to ascii
 def unicode_to_ascii(s):
@@ -39,7 +57,7 @@ def preprocess_sentence(w):
     w = re.sub(r'[" "]+', " ", w)
 
     # replacing everything with space except (a-z, A-Z, ".", "?", "!", ",")
-    w = re.sub(r"[^a-zA-Z?.!,¿]+", " ", w)
+    w = re.sub(r"[^a-zA-Z0-9_?.!,¿]+", " ", w)
 
     w = w.strip()
 
@@ -47,12 +65,6 @@ def preprocess_sentence(w):
     # so that the model know when to start and stop predicting.
     w = '<start> ' + w + ' <end>'
     return w
-
-
-en_sentence = u"May I borrow this book?"
-sp_sentence = u"¿Puedo tomar prestado este libro?"
-print(preprocess_sentence(en_sentence))
-print(preprocess_sentence(sp_sentence).encode('utf-8'))
 
 
 # 1. Remove the accents
@@ -66,14 +78,14 @@ def create_dataset(path, num_examples):
     return zip(*word_pairs)
 
 
-en, sp = create_dataset(path_to_file, None)
-print(en[-1])
-print(sp[-1])
+source, target = load_stage_data(path_to_data, 'train', 'lyric', 'note')
+print(source[-1])
+print(target[-1])
 
 
 def tokenize(lang):
     lang_tokenizer = tf.keras.preprocessing.text.Tokenizer(
-        filters='')
+        filters='\t\n', lower=False)
     lang_tokenizer.fit_on_texts(lang)
 
     tensor = lang_tokenizer.texts_to_sequences(lang)
@@ -86,7 +98,7 @@ def tokenize(lang):
 
 def load_dataset(path, num_examples=None):
     # creating cleaned input, output pairs
-    targ_lang, inp_lang = create_dataset(path, num_examples)
+    inp_lang, targ_lang = load_stage_data(path_to_data, 'train', 'lyric', 'note')
 
     input_tensor, inp_lang_tokenizer = tokenize(inp_lang)
     target_tensor, targ_lang_tokenizer = tokenize(targ_lang)
@@ -122,10 +134,10 @@ print("Target Language; index to word mapping")
 convert(targ_lang, target_tensor_train[0])
 
 BUFFER_SIZE = len(input_tensor_train)
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 steps_per_epoch = len(input_tensor_train) // BATCH_SIZE
-embedding_dim = 256
-units = 512
+embedding_dim = 200
+units = 128
 vocab_inp_size = len(inp_lang.word_index) + 1
 vocab_tar_size = len(targ_lang.word_index) + 1
 
@@ -308,7 +320,7 @@ def train_step(inp, targ, enc_hidden):
     return batch_loss
 
 
-EPOCHS = 10
+EPOCHS = 100
 
 for epoch in range(EPOCHS):
     start = time.time()
@@ -408,4 +420,4 @@ def translate(sentence):
 
 checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
-translate(u'hace mucho frio aqui.')
+translate(u'ey ma he man ey bo te Cin')
